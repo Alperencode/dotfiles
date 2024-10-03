@@ -26,13 +26,10 @@ log_warning() {
 
 # Function to install oh-my-bash and change theme
 install_oh_my_bash() {
+    # Call the Oh My Bash setup script
     log_info "Installing Oh My Bash..."
-    # Run in a subshell to avoid terminating the script
-    (bash -c "$(wget https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh -O -)")
-
-    log_info "Changing Oh My Bash theme to minimal..."
-    sed -i 's/^OSH_THEME=".*"/OSH_THEME="minimal"/' ~/.bashrc
-    log_success "Oh My Bash installed and theme changed to minimal!"
+    chmod +x ohmybash/setup_bash.sh
+    ./ohmybash/setup_bash.sh
 }
 
 # Function to install Go
@@ -55,12 +52,6 @@ install_vim() {
     log_info "Installing Vim..."
     sudo apt update && sudo apt install -y vim
 
-    log_info "Installing vim-plug for plugin management..."
-    (
-        curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
-        https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-    ) || { log_error "vim-plug installation failed"; exit 1; }
-
     log_info "Applying Vim configuration from vim/.vimrc..."
     if [ -f vim/.vimrc ]; then
         cp vim/.vimrc ~/.vimrc
@@ -68,6 +59,12 @@ install_vim() {
     else
         log_warning "vim/.vimrc not found! Skipping vim configuration."
     fi
+    
+    # Install vim-plug for managing plugins
+    log_info "Installing vim-plug for plugin management..."
+    curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+        https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    log_success "vim-plug installed!"
 }
 
 # Function to install tmux and apply tmux configuration from external file
@@ -117,22 +114,16 @@ setup_github() {
     log_info "Follow the instructions here to add the key: https://github.com/settings/keys"
 }
 
-# Function to source .bashrc
-source_bashrc() {
-    log_info "Sourcing ~/.bashrc..."
-    source ~/.bashrc
-    log_success "~/.bashrc sourced!"
-}
+
 
 # Main function to call all others
 main() {
-    install_oh_my_bash
     install_vim
     install_go
     install_tmux
     setup_github
-    source_bashrc
-    
+    install_oh_my_bash
+
     # Exec a new bash to apply all changes
     log_info "All tasks completed. Starting a new bash shell to apply changes..."
     exec bash
