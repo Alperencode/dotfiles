@@ -119,10 +119,10 @@ setup_github() {
 # Main function to call all others
 main() {
     install_vim
-    install_go
     install_tmux
-    setup_github
     install_oh_my_bash
+    install_go
+    setup_github
 
     # Exec a new bash to apply all changes
     log_info "All tasks completed. Starting a new bash shell to apply changes..."
