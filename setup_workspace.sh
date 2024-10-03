@@ -55,6 +55,12 @@ install_vim() {
     log_info "Installing Vim..."
     sudo apt update && sudo apt install -y vim
 
+    log_info "Installing vim-plug for plugin management..."
+    (
+        curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+        https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    ) || { log_error "vim-plug installation failed"; exit 1; }
+
     log_info "Applying Vim configuration from vim/.vimrc..."
     if [ -f vim/.vimrc ]; then
         cp vim/.vimrc ~/.vimrc
@@ -133,4 +139,3 @@ main() {
 }
 
 main
-
