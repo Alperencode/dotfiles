@@ -45,6 +45,38 @@ install_tmux() {
     fi
 }
 
+# Function to setup GitHub account
+setup_github() {
+    echo "Setting up GitHub account..."
+
+    # Prompt user for GitHub username and email
+    read -p "Enter your GitHub username: " github_username
+    read -p "Enter your GitHub email: " github_email
+
+    # Configure global git username and email
+    git config --global user.name "$github_username"
+    git config --global user.email "$github_email"
+    
+    echo "GitHub user details configured: $github_username <$github_email>"
+
+    # Generate an SSH key if one doesn't exist
+    if [ ! -f ~/.ssh/id_rsa ]; then
+        echo "Generating a new SSH key..."
+        ssh-keygen -t rsa -b 4096 -C "$github_email" -f ~/.ssh/id_rsa -N ""
+    else
+        echo "SSH key already exists."
+    fi
+
+    # Start the ssh-agent and add the SSH private key
+    eval "$(ssh-agent -s)"
+    ssh-add ~/.ssh/id_rsa
+
+    # Display public key and instruction to add it to GitHub
+    echo "Here is your SSH public key. Copy it and add it to your GitHub account:"
+    cat ~/.ssh/id_rsa.pub
+    echo "Follow the instructions here to add the key: https://github.com/settings/keys"
+}
+
 # Function to source .bashrc
 source_bashrc() {
     echo "Sourcing ~/.bashrc..."
@@ -57,8 +89,8 @@ main() {
     install_vim
     install_go
     install_tmux
+    setup_github
     source_bashrc
 }
 
 main
-
