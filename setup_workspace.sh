@@ -92,7 +92,11 @@ setup_github() {
     # Configure global git username and email
     git config --global user.name "$github_username"
     git config --global user.email "$github_email"
-    
+
+    # Set vim as default git editor
+    git config --global core.editor "vim"
+
+    # log configurations
     log_success "GitHub user details configured: $github_username <$github_email>"
 
     # Generate an SSH key if one doesn't exist
