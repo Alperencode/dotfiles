@@ -26,7 +26,6 @@ log_warning() {
 
 # Function to install oh-my-bash and change theme
 install_oh_my_bash() {
-    # Call the Oh My Bash setup script
     log_info "Installing Oh My Bash..."
     chmod +x ohmybash/setup_bash.sh
     ./ohmybash/setup_bash.sh
@@ -42,12 +41,11 @@ install_go() {
     echo "export GOPATH=\$HOME/go" >> ~/.bashrc
     echo "export PATH=/usr/local/go/bin:\$PATH:\$GOPATH/bin" >> ~/.bashrc
 
-    # Remove the Go tar file after installation
     rm go.tar.gz
     log_success "Go installed and configured!"
 }
 
-# Function to install vim and apply vim configuration from external file
+# Function to install vim and apply vim configuration
 install_vim() {
     log_info "Installing Vim..."
     sudo apt update && sudo apt install -y vim
@@ -59,15 +57,14 @@ install_vim() {
     else
         log_warning "vim/.vimrc not found! Skipping vim configuration."
     fi
-    
-    # Install vim-plug for managing plugins
-    log_info "Installing vim-plug for plugin management..."
+
+    log_info "Installing vim-plug..."
     curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
         https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
     log_success "vim-plug installed!"
 }
 
-# Function to install tmux and apply tmux configuration from external file
+# Function to install tmux and apply configuration
 install_tmux() {
     log_info "Installing tmux..."
     sudo apt install -y tmux
@@ -81,56 +78,85 @@ install_tmux() {
     fi
 }
 
-# Function to setup GitHub account
+# Function to setup GitHub credentials and SSH key
 setup_github() {
     log_info "Setting up GitHub account..."
-
-    # Prompt user for GitHub username and email
     read -p "Enter your GitHub username: " github_username
     read -p "Enter your GitHub email: " github_email
 
-    # Configure global git username and email
     git config --global user.name "$github_username"
     git config --global user.email "$github_email"
-
-    # Set vim as default git editor
     git config --global core.editor "vim"
 
-    # log configurations
-    log_success "GitHub user details configured: $github_username <$github_email>"
+    log_success "GitHub user configured: $github_username <$github_email>"
 
-    # Generate an SSH key if one doesn't exist
     if [ ! -f ~/.ssh/id_rsa ]; then
-        log_info "Generating a new SSH key..."
+        log_info "Generating SSH key..."
         ssh-keygen -t rsa -b 4096 -C "$github_email" -f ~/.ssh/id_rsa -N ""
         log_success "SSH key generated!"
     else
-        log_warning "SSH key already exists. Skipping key generation."
+        log_warning "SSH key already exists. Skipping generation."
     fi
 
-    # Start the ssh-agent and add the SSH private key
     eval "$(ssh-agent -s)"
     ssh-add ~/.ssh/id_rsa
 
-    # Display public key and instruction to add it to GitHub
-    log_info "Here is your SSH public key. Copy it and add it to your GitHub account:"
+    log_info "Your SSH public key (add to GitHub):"
     cat ~/.ssh/id_rsa.pub
-    log_info "Follow the instructions here to add the key: https://github.com/settings/keys"
+    log_info "GitHub SSH key setup guide: https://github.com/settings/keys"
 }
 
+# Clone repositories from file
+clone_repos() {
+    local repo_file="$1"
+    if [ ! -f "$repo_file" ]; then
+        log_error "Repository file '$repo_file' does not exist."
+        return
+    fi
 
+    log_info "Cloning repositories listed in '$repo_file'..."
+    while IFS= read -r repo; do
+        if [ -n "$repo" ]; then
+            git clone "$repo"
+            if [ $? -eq 0 ]; then
+                log_success "Cloned: $repo"
+            else
+                log_warning "Failed to clone: $repo"
+            fi
+        fi
+    done < "$repo_file"
+}
 
-# Main function to call all others
 main() {
+    local repo_file=""
+    while getopts ":r:" opt; do
+        case $opt in
+            r)
+                repo_file="$OPTARG"
+                ;;
+            \?)
+                log_error "Invalid option: -$OPTARG"
+                exit 1
+                ;;
+            :)
+                log_error "Option -$OPTARG requires a file path."
+                exit 1
+                ;;
+        esac
+    done
+
     install_vim
     install_tmux
     install_oh_my_bash
     install_go
     setup_github
 
-    # Exec a new bash to apply all changes
+    if [ -n "$repo_file" ]; then
+        clone_repos "$repo_file"
+    fi
+
     log_info "All tasks completed. Starting a new bash shell to apply changes..."
     exec bash
 }
 
-main
+main "$@"
