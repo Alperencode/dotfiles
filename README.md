@@ -11,7 +11,7 @@ chmod +x setup_workspace.sh && \
 ./setup_workspace.sh
 ```
 
-There is an optional -r flag.
+There is an optional `-r` flag.
 Use it to show a path to text file that has github repositories you want to clone after the setup.
 
 Usage example:
@@ -21,3 +21,11 @@ Usage example:
 ```
 
 This will parse the repositories line-by-line and clone them.
+Use ssh format since the setup uses an ssh authentication. 
+
+Example repositories.txt:
+
+```
+git@github.com:alperencode/dotfiles.git
+git@github.com:alperencode/alperencode.git
+```

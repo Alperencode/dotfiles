@@ -114,12 +114,13 @@ clone_repos() {
         return
     fi
 
-    log_info "Cloning repositories listed in '$repo_file'..."
+    log_info "Cloning repositories listed in '$repo_file' into upper directory"
     while IFS= read -r repo; do
         if [ -n "$repo" ]; then
-            git clone "$repo"
+            repo_name=$(basename "$repo" .git)
+            git clone "$repo" "../$repo_name"
             if [ $? -eq 0 ]; then
-                log_success "Cloned: $repo"
+                log_success "Cloned: $repo -> ../$repo_name"
             else
                 log_warning "Failed to clone: $repo"
             fi
