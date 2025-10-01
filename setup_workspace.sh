@@ -42,7 +42,11 @@ install_go() {
     echo "export PATH=/usr/local/go/bin:\$PATH:\$GOPATH/bin" >> ~/.bashrc
 
     rm go.tar.gz
-    log_success "Go installed and configured!"
+    log_success "Go installed and configured"
+
+    log_info "Installing swag (Swagger generator)..."
+    /usr/local/go/bin/go install github.com/swaggo/swag/cmd/swag@latest
+    log_success "swag installed successfully"
 }
 
 # Function to install vim and apply vim configuration
@@ -53,15 +57,15 @@ install_vim() {
     log_info "Applying Vim configuration from vim/.vimrc..."
     if [ -f vim/.vimrc ]; then
         cp vim/.vimrc ~/.vimrc
-        log_success "Vim configuration applied!"
+        log_success "Vim configuration applied"
     else
-        log_warning "vim/.vimrc not found! Skipping vim configuration."
+        log_warning "vim/.vimrc not found Skipping vim configuration."
     fi
 
     log_info "Installing vim-plug..."
     curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
         https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-    log_success "vim-plug installed!"
+    log_success "vim-plug installed"
 }
 
 # Function to install tmux and apply configuration
@@ -72,9 +76,9 @@ install_tmux() {
     log_info "Applying tmux configuration from tmux/.tmux.conf..."
     if [ -f tmux/.tmux.conf ]; then
         cp tmux/.tmux.conf ~/.tmux.conf
-        log_success "tmux configuration applied!"
+        log_success "tmux configuration applied"
     else
-        log_warning "tmux/.tmux.conf not found! Skipping tmux configuration."
+        log_warning "tmux/.tmux.conf not found Skipping tmux configuration."
     fi
 }
 
@@ -93,7 +97,7 @@ setup_github() {
     if [ ! -f ~/.ssh/id_rsa ]; then
         log_info "Generating SSH key..."
         ssh-keygen -t rsa -b 4096 -C "$github_email" -f ~/.ssh/id_rsa -N ""
-        log_success "SSH key generated!"
+        log_success "SSH key generated"
     else
         log_warning "SSH key already exists. Skipping generation."
     fi
