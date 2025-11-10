@@ -33,7 +33,7 @@ install_oh_my_bash() {
 
 # Function to install Go
 install_go() {
-    log_info "Installing Go 1.23.1 for ARM64..."
+    log_info "Installing Go for ARM64..."
     wget https://dl.google.com/go/go1.24.1.linux-arm64.tar.gz -O go.tar.gz
     sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go.tar.gz
 
