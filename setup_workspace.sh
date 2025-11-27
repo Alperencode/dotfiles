@@ -26,6 +26,11 @@ log_warning() {
 
 # Function to install oh-my-bash and change theme
 install_oh_my_bash() {
+    if [ -d ~/.oh-my-bash ]; then
+        log_warning "Oh My Bash is already installed. Skipping installation."
+        return
+    fi
+
     log_info "Installing Oh My Bash..."
     chmod +x ohmybash/setup_bash.sh
     ./ohmybash/setup_bash.sh
@@ -33,81 +38,141 @@ install_oh_my_bash() {
 
 # Function to install Go
 install_go() {
-    log_info "Installing Go for ARM64..."
-    wget https://dl.google.com/go/go1.24.1.linux-arm64.tar.gz -O go.tar.gz
+    local target_version="1.24.1"
+    
+    if command -v go &> /dev/null; then
+        local installed_version=$(go version | awk '{print $3}' | sed 's/go//')
+        if [ "$installed_version" = "$target_version" ]; then
+            log_warning "Go $target_version is already installed. Skipping installation."
+            return
+        else
+            log_info "Go $installed_version is installed, but target version is $target_version. Updating..."
+        fi
+    fi
+
+    log_info "Installing Go $target_version for ARM64..."
+    wget https://dl.google.com/go/go${target_version}.linux-arm64.tar.gz -O go.tar.gz
     sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go.tar.gz
 
-    log_info "Configuring Go environment variables..."
-    echo "export GOPATH=\$HOME/go" >> ~/.bashrc
-    echo "export PATH=/usr/local/go/bin:\$PATH:\$GOPATH/bin" >> ~/.bashrc
+    # Check if Go paths are already in .bashrc
+    if ! grep -q "export GOPATH=" ~/.bashrc; then
+        log_info "Configuring Go environment variables..."
+        echo "export GOPATH=\$HOME/go" >> ~/.bashrc
+        echo "export PATH=/usr/local/go/bin:\$PATH:\$GOPATH/bin" >> ~/.bashrc
+    else
+        log_warning "Go environment variables already configured in .bashrc"
+    fi
 
     rm go.tar.gz
     log_success "Go installed and configured"
 
-    log_info "Installing swag (Swagger generator)..."
-    /usr/local/go/bin/go install github.com/swaggo/swag/cmd/swag@latest
-    log_success "swag installed successfully"
+    # Check if swag is already installed
+    if [ -f "$HOME/go/bin/swag" ]; then
+        log_warning "swag is already installed. Skipping installation."
+    else
+        log_info "Installing swag (Swagger generator)..."
+        /usr/local/go/bin/go install github.com/swaggo/swag/cmd/swag@latest
+        log_success "swag installed successfully"
+    fi
 }
 
 # Function to install vim and apply vim configuration
 install_vim() {
-    log_info "Installing Vim..."
-    sudo apt update && sudo apt install -y vim
+    if command -v vim &> /dev/null; then
+        log_warning "Vim is already installed. Skipping installation."
+    else
+        log_info "Installing Vim..."
+        sudo apt update && sudo apt install -y vim
+        log_success "Vim installed"
+    fi
 
     log_info "Applying Vim configuration from vim/.vimrc..."
     if [ -f vim/.vimrc ]; then
         cp vim/.vimrc ~/.vimrc
         log_success "Vim configuration applied"
     else
-        log_warning "vim/.vimrc not found Skipping vim configuration."
+        log_warning "vim/.vimrc not found. Skipping vim configuration."
     fi
 
-    log_info "Installing vim-plug..."
-    curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
-        https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-    log_success "vim-plug installed"
+    if [ -f ~/.vim/autoload/plug.vim ]; then
+        log_warning "vim-plug is already installed. Skipping installation."
+    else
+        log_info "Installing vim-plug..."
+        curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+            https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+        log_success "vim-plug installed"
+    fi
 }
 
 # Function to install tmux and apply configuration
 install_tmux() {
-    log_info "Installing tmux..."
-    sudo apt install -y tmux
+    if command -v tmux &> /dev/null; then
+        log_warning "tmux is already installed. Skipping installation."
+    else
+        log_info "Installing tmux..."
+        sudo apt install -y tmux
+        log_success "tmux installed"
+    fi
 
     log_info "Applying tmux configuration from tmux/.tmux.conf..."
     if [ -f tmux/.tmux.conf ]; then
         cp tmux/.tmux.conf ~/.tmux.conf
         log_success "tmux configuration applied"
     else
-        log_warning "tmux/.tmux.conf not found Skipping tmux configuration."
+        log_warning "tmux/.tmux.conf not found. Skipping tmux configuration."
     fi
 }
 
 # Function to setup GitHub credentials and SSH key
 setup_github() {
-    log_info "Setting up GitHub account..."
-    read -p "Enter your GitHub username: " github_username
-    read -p "Enter your GitHub email: " github_email
+    # Check if git config already has user name and email
+    local existing_name=$(git config --global user.name)
+    local existing_email=$(git config --global user.email)
+    
+    if [ -n "$existing_name" ] && [ -n "$existing_email" ]; then
+        log_warning "GitHub credentials already configured: $existing_name <$existing_email>"
+        read -p "Do you want to reconfigure? (y/N): " reconfigure
+        if [[ ! "$reconfigure" =~ ^[Yy]$ ]]; then
+            log_info "Keeping existing GitHub configuration"
+        else
+            log_info "Setting up GitHub account..."
+            read -p "Enter your GitHub username: " github_username
+            read -p "Enter your GitHub email: " github_email
 
-    git config --global user.name "$github_username"
-    git config --global user.email "$github_email"
+            git config --global user.name "$github_username"
+            git config --global user.email "$github_email"
+            log_success "GitHub user configured: $github_username <$github_email>"
+        fi
+    else
+        log_info "Setting up GitHub account..."
+        read -p "Enter your GitHub username: " github_username
+        read -p "Enter your GitHub email: " github_email
+
+        git config --global user.name "$github_username"
+        git config --global user.email "$github_email"
+        log_success "GitHub user configured: $github_username <$github_email>"
+    fi
+
+    # Always set vim as the editor if not already set
     git config --global core.editor "vim"
-
-    log_success "GitHub user configured: $github_username <$github_email>"
 
     if [ ! -f ~/.ssh/id_rsa ]; then
         log_info "Generating SSH key..."
-        ssh-keygen -t rsa -b 4096 -C "$github_email" -f ~/.ssh/id_rsa -N ""
+        local email="${github_email:-$(git config --global user.email)}"
+        ssh-keygen -t rsa -b 4096 -C "$email" -f ~/.ssh/id_rsa -N ""
         log_success "SSH key generated"
+        
+        eval "$(ssh-agent -s)"
+        ssh-add ~/.ssh/id_rsa
+
+        log_info "Your SSH public key (add to GitHub):"
+        cat ~/.ssh/id_rsa.pub
+        log_info "GitHub SSH key setup guide: https://github.com/settings/keys"
     else
         log_warning "SSH key already exists. Skipping generation."
+        log_info "Your existing SSH public key:"
+        cat ~/.ssh/id_rsa.pub
     fi
-
-    eval "$(ssh-agent -s)"
-    ssh-add ~/.ssh/id_rsa
-
-    log_info "Your SSH public key (add to GitHub):"
-    cat ~/.ssh/id_rsa.pub
-    log_info "GitHub SSH key setup guide: https://github.com/settings/keys"
 }
 
 # Clone repositories from file
@@ -122,6 +187,13 @@ clone_repos() {
     while IFS= read -r repo; do
         if [ -n "$repo" ]; then
             repo_name=$(basename "$repo" .git)
+            
+            # Check if repository already exists
+            if [ -d "../$repo_name" ]; then
+                log_warning "Repository '../$repo_name' already exists. Skipping clone."
+                continue
+            fi
+            
             git clone "$repo" "../$repo_name"
             if [ $? -eq 0 ]; then
                 log_success "Cloned: $repo -> ../$repo_name"
