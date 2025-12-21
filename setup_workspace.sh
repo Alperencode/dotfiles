@@ -123,6 +123,28 @@ install_tmux() {
     fi
 }
 
+install_tmux_plugins() {
+    local tpm_dir="$HOME/.tmux/plugins/tpm"
+
+    if [ -d "$tpm_dir" ]; then
+        log_warning "TPM already installed. Skipping TPM installation."
+    else
+        log_info "Installing Tmux Plugin Manager (TPM)..."
+        git clone https://github.com/tmux-plugins/tpm "$tpm_dir"
+        log_success "TPM installed"
+    fi
+
+    # Install tmux plugins if tmux server is running
+    if tmux info &>/dev/null; then
+        log_info "Installing tmux plugins via TPM..."
+        tmux source-file ~/.tmux.conf
+        tmux run-shell "$tpm_dir/bin/install_plugins"
+        log_success "tmux plugins installed"
+    else
+        log_warning "tmux server not running. Plugins will install on first tmux start (Ctrl+b I)."
+    fi
+}
+
 # Function to setup GitHub credentials and SSH key
 setup_github() {
     # Check if git config already has user name and email
@@ -224,6 +246,7 @@ main() {
 
     install_vim
     install_tmux
+    install_tmux_plugins
     install_oh_my_bash
     install_go
     setup_github
