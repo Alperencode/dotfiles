@@ -77,21 +77,23 @@ install_go() {
 }
 
 # Function to install Neovim from source
+# Function to install Neovim from source
 install_neovim() {
     local min_version="0.8.0"
-
+    
+    # Check if neovim is already installed and meets minimum version
     if command -v nvim &> /dev/null; then
         local installed_version=$(nvim --version | head -n1 | awk '{print $2}' | sed 's/v//')
         if [ "$(printf '%s\n' "$min_version" "$installed_version" | sort -V | head -n1)" = "$min_version" ]; then
             log_warning "Neovim $installed_version is already installed (>= $min_version). Skipping installation."
-
+            
             # Check if kickstart.nvim is installed
             if [ -d "${XDG_CONFIG_HOME:-$HOME/.config}/nvim" ]; then
                 log_warning "kickstart.nvim config already exists. Skipping."
             else
                 log_info "Installing kickstart.nvim..."
                 git clone https://github.com/nvim-lua/kickstart.nvim.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
-
+                
                 # Fix treesitter configs module name
                 local nvim_init="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua"
                 if [ -f "$nvim_init" ]; then
@@ -99,8 +101,38 @@ install_neovim() {
                     sed -i "s/main = 'nvim-treesitter\.configs'/main = 'nvim-treesitter'/g" "$nvim_init"
                     sed -i "s/require('nvim-treesitter\.configs')/require('nvim-treesitter')/g" "$nvim_init"
                     log_success "Treesitter config fixed"
+                    
+                    log_info "Adding custom keymaps and plugins..."
+                    
+                    # Add git diff toggle keymap after the Clear highlights keymap (around line 173)
+                    sed -i "/vim\.keymap\.set('n', '<Esc>', '<cmd>nohlsearch<CR>')/a\\
+\\
+-- Git diff toggle\\
+vim.keymap.set('n', '<leader>gd', function()\\
+  if vim.wo.diff then\\
+    vim.cmd('diffoff')\\
+    vim.cmd('only')\\
+  else\\
+    vim.cmd('Gitsigns diffthis')\\
+  end\\
+end, { desc = '[G]it [D]iff toggle' })" "$nvim_init"
+                    
+                    # Add toggleterm plugin after gitsigns plugin (around line 300)
+                    sed -i "/{ -- Adds git related signs to the gutter/a\\
+\\
+  { -- Terminal like VSCode\\
+    'akinsho/toggleterm.nvim',\\
+    version = '*',\\
+    opts = {\\
+      open_mapping = [[<C-\\\\>]],\\
+      direction = 'horizontal',\\
+      size = 15,\\
+    },\\
+  }," "$nvim_init"
+                    
+                    log_success "Custom keymaps and plugins added"
                 fi
-
+                
                 log_success "kickstart.nvim installed"
             fi
             return
@@ -112,7 +144,7 @@ install_neovim() {
 
     log_info "Installing Neovim build dependencies..."
     sudo apt-get update
-    sudo apt-get install -y ninja-build gettext cmake unzip curl build-essential git
+    sudo apt-get install -y ninja-build gettext cmake unzip curl build-essential git ripgrep
 
     log_info "Cloning and building Neovim from source..."
     cd ~
@@ -147,6 +179,36 @@ install_neovim() {
             sed -i "s/main = 'nvim-treesitter\.configs'/main = 'nvim-treesitter'/g" "$nvim_init"
             sed -i "s/require('nvim-treesitter\.configs')/require('nvim-treesitter')/g" "$nvim_init"
             log_success "Treesitter config fixed"
+
+            log_info "Adding custom keymaps and plugins..."
+
+            # Add git diff toggle keymap after the Clear highlights keymap
+            sed -i "/vim\.keymap\.set('n', '<Esc>', '<cmd>nohlsearch<CR>')/a\\
+\\
+-- Git diff toggle\\
+vim.keymap.set('n', '<leader>gd', function()\\
+  if vim.wo.diff then\\
+    vim.cmd('diffoff')\\
+    vim.cmd('only')\\
+  else\\
+    vim.cmd('Gitsigns diffthis')\\
+  end\\
+end, { desc = '[G]it [D]iff toggle' })" "$nvim_init"
+
+            # Add toggleterm plugin after gitsigns plugin
+            sed -i "/{ -- Adds git related signs to the gutter/a\\
+\\
+  { -- Terminal like VSCode\\
+    'akinsho/toggleterm.nvim',\\
+    version = '*',\\
+    opts = {\\
+      open_mapping = [[<C-\\\\>]],\\
+      direction = 'horizontal',\\
+      size = 15,\\
+    },\\
+  }," "$nvim_init"
+
+            log_success "Custom keymaps and plugins added"
         fi
 
         log_success "kickstart.nvim installed. Run 'nvim' to install plugins on first launch."
