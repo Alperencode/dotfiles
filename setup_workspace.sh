@@ -76,6 +76,83 @@ install_go() {
     fi
 }
 
+# Function to install Neovim from source
+install_neovim() {
+    local min_version="0.8.0"
+
+    if command -v nvim &> /dev/null; then
+        local installed_version=$(nvim --version | head -n1 | awk '{print $2}' | sed 's/v//')
+        if [ "$(printf '%s\n' "$min_version" "$installed_version" | sort -V | head -n1)" = "$min_version" ]; then
+            log_warning "Neovim $installed_version is already installed (>= $min_version). Skipping installation."
+
+            # Check if kickstart.nvim is installed
+            if [ -d "${XDG_CONFIG_HOME:-$HOME/.config}/nvim" ]; then
+                log_warning "kickstart.nvim config already exists. Skipping."
+            else
+                log_info "Installing kickstart.nvim..."
+                git clone https://github.com/nvim-lua/kickstart.nvim.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
+
+                # Fix treesitter configs module name
+                local nvim_init="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua"
+                if [ -f "$nvim_init" ]; then
+                    log_info "Fixing nvim-treesitter configuration for compatibility..."
+                    sed -i "s/main = 'nvim-treesitter\.configs'/main = 'nvim-treesitter'/g" "$nvim_init"
+                    sed -i "s/require('nvim-treesitter\.configs')/require('nvim-treesitter')/g" "$nvim_init"
+                    log_success "Treesitter config fixed"
+                fi
+
+                log_success "kickstart.nvim installed"
+            fi
+            return
+        else
+            log_info "Neovim $installed_version is installed, but version >= $min_version is required. Updating..."
+            sudo apt-get remove -y neovim
+        fi
+    fi
+
+    log_info "Installing Neovim build dependencies..."
+    sudo apt-get update
+    sudo apt-get install -y ninja-build gettext cmake unzip curl build-essential git
+
+    log_info "Cloning and building Neovim from source..."
+    cd ~
+    if [ -d ~/neovim ]; then
+        rm -rf ~/neovim
+    fi
+
+    git clone https://github.com/neovim/neovim
+    cd neovim
+    git checkout stable
+    make CMAKE_BUILD_TYPE=RelWithDebInfo
+    sudo make install
+
+    # Clean up build directory
+    cd ~
+    rm -rf neovim
+
+    log_success "Neovim installed successfully"
+
+    # Install kickstart.nvim
+    if [ -d "${XDG_CONFIG_HOME:-$HOME/.config}/nvim" ]; then
+        log_warning "Neovim config directory already exists. Skipping kickstart.nvim installation."
+        log_warning "If you want to install kickstart.nvim, backup and remove ${XDG_CONFIG_HOME:-$HOME/.config}/nvim first"
+    else
+        log_info "Installing kickstart.nvim..."
+        git clone https://github.com/nvim-lua/kickstart.nvim.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
+
+        # Fix treesitter configs module name
+        local nvim_init="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua"
+        if [ -f "$nvim_init" ]; then
+            log_info "Fixing nvim-treesitter configuration for compatibility..."
+            sed -i "s/main = 'nvim-treesitter\.configs'/main = 'nvim-treesitter'/g" "$nvim_init"
+            sed -i "s/require('nvim-treesitter\.configs')/require('nvim-treesitter')/g" "$nvim_init"
+            log_success "Treesitter config fixed"
+        fi
+
+        log_success "kickstart.nvim installed. Run 'nvim' to install plugins on first launch."
+    fi
+}
+
 # Function to install vim and apply vim configuration
 install_vim() {
     if command -v vim &> /dev/null; then
@@ -245,6 +322,7 @@ main() {
     done
 
     install_vim
+    install_neovim
     install_tmux
     install_tmux_plugins
     install_oh_my_bash
