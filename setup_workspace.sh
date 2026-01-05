@@ -79,22 +79,39 @@ install_go() {
 # Function to install Neovim from source
 install_neovim() {
     local min_version="0.8.0"
-    local skip_installation=false
 
     # Check if neovim is already installed and meets minimum version
     if command -v nvim &> /dev/null; then
         local installed_version=$(nvim --version | head -n1 | awk '{print $2}' | sed 's/v//')
         if [ "$(printf '%s\n' "$min_version" "$installed_version" | sort -V | head -n1)" = "$min_version" ]; then
             log_warning "Neovim $installed_version is already installed (>= $min_version). Skipping Neovim build."
-            skip_installation=true
         else
             log_info "Neovim $installed_version is installed, but version >= $min_version is required. Updating..."
             sudo apt-get remove -y neovim
-        fi
-    fi
 
-    # Install Neovim if needed
-    if [ "$skip_installation" = false ]; then
+            log_info "Installing Neovim build dependencies..."
+            sudo apt-get update
+            sudo apt-get install -y ninja-build gettext cmake unzip curl build-essential git ripgrep
+
+            log_info "Cloning and building Neovim from source..."
+            cd ~
+            if [ -d ~/neovim ]; then
+                rm -rf ~/neovim
+            fi
+
+            git clone https://github.com/neovim/neovim
+            cd neovim
+            git checkout stable
+            make CMAKE_BUILD_TYPE=RelWithDebInfo
+            sudo make install
+
+            # Clean up build directory
+            cd ~
+            rm -rf neovim
+
+            log_success "Neovim installed successfully"
+        fi
+    else
         log_info "Installing Neovim build dependencies..."
         sudo apt-get update
         sudo apt-get install -y ninja-build gettext cmake unzip curl build-essential git ripgrep
@@ -118,110 +135,35 @@ install_neovim() {
         log_success "Neovim installed successfully"
     fi
 
-    # Always check and apply kickstart.nvim configuration
-    if [ ! -d "${XDG_CONFIG_HOME:-$HOME/.config}/nvim" ]; then
-        log_info "Installing kickstart.nvim..."
-        git clone https://github.com/nvim-lua/kickstart.nvim.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
-        log_success "kickstart.nvim installed"
-    else
-        log_warning "kickstart.nvim config already exists."
-    fi
+    # Apply Neovim configuration from submodule
+    apply_neovim_config
 
-    # Always apply customizations (idempotent)
-    apply_nvim_customizations
 }
 
 # Function to apply Neovim customizations
-apply_nvim_customizations() {
-    local nvim_init="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua"
-    
-    if [ ! -f "$nvim_init" ]; then
-        log_error "init.lua not found at $nvim_init"
+apply_neovim_config() {
+    local nvim_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+    local current_dir=$(pwd)
+
+    log_info "Applying Neovim configuration from nvim-config submodule..."
+
+    if [ ! -d "nvim-config" ]; then
+        log_error "nvim-config submodule not found. Did you clone with --recurse-submodules?"
+        log_info "Run: git submodule update --init --recursive"
         return 1
     fi
 
-    log_info "Applying Neovim customizations..."
-
-    # Enable Nerd Font (idempotent - only replaces if false exists)
-    if grep -q "vim\.g\.have_nerd_font = false" "$nvim_init"; then
-        sed -i "s/vim\.g\.have_nerd_font = false/vim.g.have_nerd_font = true/g" "$nvim_init"
-        log_success "Nerd Font enabled"
-    else
-        log_info "Nerd Font already enabled or not found"
+    # Remove existing config if present
+    if [ -d "$nvim_config_dir" ]; then
+        log_warning "Removing existing Neovim config..."
+        rm -rf "$nvim_config_dir"
     fi
 
-    # Fix treesitter configs module name (idempotent)
-    if grep -q "nvim-treesitter\.configs" "$nvim_init"; then
-        log_info "Fixing nvim-treesitter configuration for compatibility..."
-        sed -i "s/main = 'nvim-treesitter\.configs'/main = 'nvim-treesitter'/g" "$nvim_init"
-        sed -i "s/require('nvim-treesitter\.configs')/require('nvim-treesitter')/g" "$nvim_init"
-        log_success "Treesitter config fixed"
-    else
-        log_info "Treesitter config already fixed or not found"
-    fi
+    # Create symlink to submodule
+    ln -s "$current_dir/nvim-config" "$nvim_config_dir"
+    log_success "Neovim configuration linked from submodule"
 
-    log_info "Adding custom keymaps and plugins..."
-
-    # Add git diff toggle keymap (idempotent - only add if not exists)
-    if ! grep -q "\-\- Git diff toggle" "$nvim_init"; then
-        sed -i "/vim\.keymap\.set('n', '<Esc>', '<cmd>nohlsearch<CR>')/a\\
-\\
--- Git diff toggle\\
-vim.keymap.set('n', '<leader>gd', function()\\
-  if vim.wo.diff then\\
-    vim.cmd('diffoff')\\
-    vim.cmd('only')\\
-  else\\
-    vim.cmd('Gitsigns diffthis')\\
-  end\\
-end, { desc = '[G]it [D]iff toggle' })" "$nvim_init"
-        log_success "Git diff keymap added"
-    else
-        log_info "Git diff keymap already exists"
-    fi
-
-    # Add toggleterm plugin (idempotent - only add if not exists)
-    if ! grep -q "'akinsho/toggleterm\.nvim'" "$nvim_init"; then
-        cat > /tmp/nvim_toggleterm.txt << 'EOF'
-
-  { -- Terminal like VSCode
-    'akinsho/toggleterm.nvim',
-    version = '*',
-    opts = {
-      open_mapping = [[<C-\>]],
-      direction = 'horizontal',
-      size = 15,
-    },
-  },
-EOF
-        sed -i "/{ -- Adds git related signs to the gutter/r /tmp/nvim_toggleterm.txt" "$nvim_init"
-        rm /tmp/nvim_toggleterm.txt
-        log_success "Toggleterm plugin added"
-    else
-        log_info "Toggleterm plugin already exists"
-    fi
-
-    # Add nvim-tree plugin (idempotent - only add if not exists)
-    if ! grep -q "'nvim-tree/nvim-tree\.lua'" "$nvim_init"; then
-        cat > /tmp/nvim_tree.txt << 'EOF'
-
-  { -- File explorer like VSCode
-    'nvim-tree/nvim-tree.lua',
-    dependencies = { 'nvim-tree/nvim-web-devicons' },
-    config = function()
-      require('nvim-tree').setup()
-      vim.keymap.set('n', '<leader>e', '<cmd>NvimTreeToggle<CR>', { desc = '[E]xplorer toggle' })
-    end,
-  },
-EOF
-        sed -i "/{ -- Adds git related signs to the gutter/r /tmp/nvim_tree.txt" "$nvim_init"
-        rm /tmp/nvim_tree.txt
-        log_success "Nvim-tree plugin added"
-    else
-        log_info "Nvim-tree plugin already exists"
-    fi
-
-    log_success "Neovim customizations applied"
+    log_info "Run 'nvim' to install plugins on first launch"
 }
 
 install_vim() {
