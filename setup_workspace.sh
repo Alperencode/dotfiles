@@ -41,9 +41,29 @@ install_go() {
   local target_version="1.25.3"
   local min_version="1.24.1"
 
+  # Detect architecture
+  local arch=$(uname -m)
+  local go_arch=""
+
+  case "$arch" in
+  x86_64)
+    go_arch="amd64"
+    ;;
+  aarch64 | arm64)
+    go_arch="arm64"
+    ;;
+  armv7l)
+    go_arch="armv6l"
+    ;;
+  *)
+    log_error "Unsupported architecture: $arch"
+    exit 1
+    ;;
+  esac
+
   if command -v go &>/dev/null; then
     local installed_version=$(go version | awk '{print $3}' | sed 's/go//')
-    #
+
     # Check if installed version meets minimum requirement
     if [ "$(printf '%s\n' "$min_version" "$installed_version" | sort -V | head -n1)" = "$min_version" ]; then
       log_warning "Go $installed_version is already installed (>= $min_version). Skipping installation."
@@ -62,8 +82,8 @@ install_go() {
     fi
   fi
 
-  log_info "Installing Go $target_version for ARM64..."
-  wget https://dl.google.com/go/go${target_version}.linux-arm64.tar.gz -O go.tar.gz
+  log_info "Installing Go $target_version for $go_arch..."
+  wget https://dl.google.com/go/go${target_version}.linux-${go_arch}.tar.gz -O go.tar.gz
   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go.tar.gz
 
   # Check if Go paths are already in .bashrc
