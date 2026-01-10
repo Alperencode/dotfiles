@@ -14,27 +14,17 @@ sudo apt-get install git -y && \
 git clone --recursive https://github.com/Alperencode/dotfiles.git && \
 cd dotfiles && \
 chmod +x setup_workspace.sh && \
-./setup_workspace.sh -n
+./setup_workspace.sh
 ```
 
-### HTTP Authentication (With NeoVim enabled)
+### SSH Authentication
 
 ```bash
 sudo apt-get install git -y && \
 git clone --recursive https://github.com/Alperencode/dotfiles.git && \
 cd dotfiles && \
 chmod +x setup_workspace.sh && \
-./setup_workspace.sh -n
-```
-
-### HTTP Authentication (With NeoVim enabled)
-
-```bash
-sudo apt-get install git -y && \
-git clone --recursive git@github.com:Alperencode/dotfiles.git && \
-cd dotfiles && \
-chmod +x setup_workspace.sh && \
-./setup_workspace.sh -n
+./setup_workspace.sh
 ```
 
 There is an optional `-r` flag.
