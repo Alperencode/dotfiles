@@ -32,8 +32,24 @@ install_oh_my_bash() {
   fi
 
   log_info "Installing Oh My Bash..."
-  chmod +x ohmybash/setup_bash.sh
-  ./ohmybash/setup_bash.sh
+
+  # Install Oh My Bash
+  bash -c "$(wget https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh -O -)"
+
+  log_info "Changing Oh My Bash theme to minimal..."
+  sed -i 's/^OSH_THEME=".*"/OSH_THEME="minimal"/' ~/.bashrc
+  log_success "Oh My Bash installed and theme changed to minimal!"
+
+  log_info "Customizing minimal theme..."
+
+  local theme_file="$HOME/.oh-my-bash/themes/minimal/minimal.theme.sh"
+
+  if [ -f "$theme_file" ]; then
+    sed -i 's|PS1="$(scm_prompt_info)${_omb_prompt_reset_color} \W ${_omb_prompt_reset_color}"|PS1="$(scm_prompt_info)${_omb_prompt_reset_color} ${_omb_prompt_teal}(\h) \W ${_omb_prompt_reset_color}"|' "$theme_file"
+    log_success "Minimal theme customized successfully!"
+  else
+    log_warning "Theme file not found: $theme_file"
+  fi
 }
 
 # Function to install Go
