@@ -315,22 +315,22 @@ setup_github() {
   # Always set vim as the editor if not already set
   git config --global core.editor "vim"
 
-  if [ ! -f ~/.ssh/id_rsa ]; then
+  if [ ! -f ~/.ssh/id_ed25519 ]; then
     log_info "Generating SSH key..."
     local email="${github_email:-$(git config --global user.email)}"
-    ssh-keygen -t rsa -b 4096 -C "$email" -f ~/.ssh/id_rsa -N ""
+    ssh-keygen -t ed25519 -C "$email" -f ~/.ssh/id_ed25519 -N ""
     log_success "SSH key generated"
 
     eval "$(ssh-agent -s)"
-    ssh-add ~/.ssh/id_rsa
+    ssh-add ~/.ssh/id_ed25519
 
     log_info "Your SSH public key (add to GitHub):"
-    cat ~/.ssh/id_rsa.pub
+    cat ~/.ssh/id_ed25519.pub
     log_info "GitHub SSH key setup guide: https://github.com/settings/keys"
   else
     log_warning "SSH key already exists. Skipping generation."
     log_info "Your existing SSH public key:"
-    cat ~/.ssh/id_rsa.pub
+    cat ~/.ssh/id_ed25519.pub
     log_info "GitHub SSH key setup guide: https://github.com/settings/keys"
   fi
 }
